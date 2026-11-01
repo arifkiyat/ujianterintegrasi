@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CBT Ujian Sekolah Terintegrasi</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --danger: #dc2626;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --bg: #f8fafc;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: var(--bg); color: #1e293b; line-height: 1.5; }
+
+        /* Sembunyikan elemen */
+        .hidden { display: none !important; }
+
+        /* Layout Halaman Login */
+        .login-container {
+            max-width: 400px; margin: 10vh auto; background: #fff; padding: 30px;
+            border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+        }
+        .login-container h2 { margin-bottom: 20px; color: var(--primary); text-align: center; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9rem; }
+        .form-group input { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 1rem; }
+        .btn { width: 100%; padding: 10px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: #1d4ed8; }
+
+        /* Layout Ruang Ujian */
+        #exam-page { user-select: none; }
+        #watermark {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            pointer-events: none; z-index: 9999; display: flex; flex-wrap: wrap;
+            justify-content: space-around; align-content: space-around;
+            opacity: 0.06; font-size: 14px; font-weight: bold; color: #000;
+            transform: rotate(-15deg); overflow: hidden;
+        }
+        .exam-layout { max-width: 1200px; margin: 20px auto; padding: 15px; display: grid; grid-template-columns: 1fr 300px; gap: 20px; }
+        @media(max-width: 768px) { .exam-layout { grid-template-columns: 1fr; } }
+
+        .card { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .question-box { font-size: 1.1rem; font-weight: 600; margin-bottom: 20px; }
+        .options label { display: block; padding: 12px; margin-bottom: 10px; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer; }
+        .options label:hover { background: #f1f5f9; border-color: var(--primary); }
+        .options input { margin-right: 10px; }
+
+        /* Sidebar Navigasi */
+        .sidebar { display: flex; flex-direction: column; gap: 15px; }
+        .timer-box { text-align: center; }
+        .timer { font-size: 1.8rem; font-weight: bold; color: var(--danger); margin-top: 5px; }
+        .nav-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-top: 10px; }
+        .nav-btn { padding: 8px; border: 1px solid #cbd5e1; background: #fff; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        .nav-btn.active { border-color: var(--primary); background: #eff6ff; color: var(--primary); }
+        .nav-btn.answered { background: var(--success); color: white; border-color: var(--success); }
+        
+        .btn-group { display: flex; justify-content: space-between; margin-top: 20px; }
+        .btn-sm { padding: 8px 16px; border-radius: 6px; border: none; font-weight: 600; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <!-- 1. HALAMAN LOGIN SISWA & TOKEN -->
+    <div id="login-page" class="login-container">
+        <h2>Login Ujian CBT</h2>
+        <div id="error-msg" style="color: var(--danger); font-size: 0.85rem; margin-bottom: 10px; text-align: center;"></div>
+        <div class="form-group">
+            <label>NISN / Username</label>
+            <input type="text" id="username" placeholder="Masukkan NISN Anda">
+        </div>
+        <div class="form-group">
+            <label>Token Ujian (Diberikan Pengawas)</label>
+            <input type="text" id="exam-token" placeholder="Contoh: K7X9M2" style="text-transform: uppercase;">
+        </div>
+        <button class="btn btn-primary" onclick="handleLogin()">Mulai Ujian</button>
+    </div>
+
+    <!-- 2. HALAMAN RUANG UJIAN -->
+    <div id="exam-page" class="hidden">
+        <div id="watermark"></div>
+
+        <div class="exam-layout">
+            <!-- Soal Utama -->
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 15px;">
+                    <span>Soal No. <span id="current-num">1</span> dari <span id="total-num">5</span></span>
+                    <span style="color: #64748b;" id="student-info-header">Siswa: -</span>
+                </div>
+
+                <div class="question-box" id="question-text">Memuat soal...</div>
+                <div class="options" id="options-box"></div>
+
+                <div class="btn-group">
+                    <button class="btn-sm" style="background:#e2e8f0;" onclick="prevQuestion()">Sebelumnya</button>
+                    <button class="btn-sm" style="background:var(--warning); color:white;" onclick="markRagu()">Ragu-ragu</button>
+                    <button class="btn-sm btn-primary" onclick="nextQuestion()">Selanjutnya</button>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <div class="card timer-box">
+                    <span style="font-size: 0.85rem; color: #64748b;">Sisa Waktu</span>
+                    <div class="timer" id="countdown-timer">00:45:00</div>
+                </div>
+
+                <div class="card">
+                    <p style="font-weight: 600; font-size: 0.9rem;">Navigasi Soal</p>
+                    <div class="nav-grid" id="nav-grid"></div>
+                    <button class="btn" style="background:var(--danger); color:white; margin-top:20px;" onclick="submitExam()">Selesai & Kirim Ujian</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Simulasi Token Aktif (Dalam praktek nyata, ini ditarik dinamis dari Cloud DB per 10 menit)
+        const ACTIVE_TOKEN = "UJIAN2026"; 
+        let loginAttempts = 0;
+
+        // Data Bank Soal Simulasi
+        const questions = [
+            { q: "Manakah yang termasuk perangkat lunak sistem operasi?", options: ["Microsoft Word", "Linux Ubuntu", "Google Chrome", "Adobe Photoshop"], answer: 1 },
+            { q: "Hasil dari 12 x 8 - 15 adalah...", options: ["81", "71", "96", "86"], answer: 0 },
+            { q: "Ibukota negara Indonesia berdasarkan undang-undang baru adalah...", options: ["Jakarta", "Bandung", "Nusantara (IKN)", "Surabaya"], answer: 2 },
+            { q: "Protokol standar yang digunakan untuk mengakses halaman web adalah...", options: ["HTTP / HTTPS", "FTP", "SMTP", "SSH"], answer: 0 },
+            { q: "Perangkat keras komputer yang berfungsi sebagai otak pemrosesan data adalah...", options: ["RAM", "Harddisk", "CPU / Processor", "Power Supply"], answer: 2 }
+        ];
+
+        let currentIdx = 0;
+        let answers = {};
+        let loggedInUser = "";
+
+        // Fungsi Login dengan Validasi Token & Batas 3 Kali Gagal
+        function handleLogin() {
+            const username = document.getElementById('username').value.trim();
+            const token = document.getElementById('exam-token').value.trim().toUpperCase();
+            const errorMsg = document.getElementById('error-msg');
+
+            if (!username || !token) {
+                errorMsg.innerText = "NISN dan Token Ujian wajib diisi!";
+                return;
+            }
+
+            if (token !== ACTIVE_TOKEN) {
+                loginAttempts++;
+                if (loginAttempts >= 3) {
+                    document.getElementById('login-page').innerHTML = `
+                        <h3 style="color:var(--danger); text-align:center;">AKUN DIBLOKIR</h3>
+                        <p style="text-align:center; margin-top:10px;">Anda telah salah memasukkan token sebanyak 3 kali. Silakan lapor kepada Pengawas Ujian untuk membuka blokir.</p>
+                    `;
+                } else {
+                    errorMsg.innerText = `Token salah! Percobaan gagal ke-${loginAttempts} dari 3.`;
+                }
+                return;
+            }
+
+            // Jika Login Sukses
+            loggedInUser = username;
+            document.getElementById('login-page').classList.add('hidden');
+            document.getElementById('exam-page').classList.remove('hidden');
+            document.getElementById('student-info-header').innerText = `Siswa: ${username}`;
+
+            initExam();
+        }
+
+        // Inisialisasi Ujian
+        function initExam() {
+            // Buat Dynamic Watermark
+            const wm = document.getElementById('watermark');
+            for(let i=0; i<30; i++) {
+                let span = document.createElement('span');
+                span.innerText = `Siswa: ${loggedInUser} - CBT SEKOLAH SECURE`;
+                wm.appendChild(span);
+            }
+
+            // Render Navigasi Grid
+            let gridHTML = '';
+            questions.forEach((_, i) => {
+                gridHTML += `<button class="nav-btn" id="nav-${i}" onclick="loadQuestion(${i})">${i + 1}</button>`;
+            });
+            document.getElementById('nav-grid').innerHTML = gridHTML;
+            document.getElementById('total-num').innerText = questions.length;
+
+            loadQuestion(0);
+            startTimer(2700); // 45 Menit
+            initAntiCheat();
+        }
+
+        // Muat Soal
+        function loadQuestion(index) {
+            currentIdx = index;
+            document.getElementById('current-num').innerText = index + 1;
+            document.getElementById('question-text').innerText = questions[index].q;
+
+            let optHTML = '';
+            questions[index].options.forEach((opt, i) => {
+                let checked = answers[index] === i ? 'checked' : '';
+                optHTML += `<label><input type="radio" name="opt" value="${i}" ${checked} onclick="saveAns(${index}, ${i})"> ${opt}</label>`;
+            });
+            document.getElementById('options-box').innerHTML = optHTML;
+            updateNavColor();
+        }
+
+        function saveAns(qIdx, optIdx) {
+            answers[qIdx] = optIdx;
+            updateNavColor();
+        }
+
+        function nextQuestion() { if(currentIdx < questions.length - 1) loadQuestion(currentIdx + 1); }
+        function prevQuestion() { if(currentIdx > 0) loadQuestion(currentIdx - 1); }
+
+        function updateNavColor() {
+            questions.forEach((_, i) => {
+                let btn = document.getElementById(`nav-${i}`);
+                btn.className = "nav-btn";
+                if(i === currentIdx) btn.classList.add('active');
+                if(answers[i] !== undefined) btn.classList.add('answered');
+            });
+        }
+
+        // Timer Mundur
+        function startTimer(duration) {
+            let timer = duration, hours, minutes, seconds;
+            setInterval(() => {
+                hours = Math.floor(timer / 3600);
+                minutes = Math.floor((timer % 3600) / 60);
+                seconds = timer % 60;
+
+                document.getElementById('countdown-timer').innerText = 
+                    `${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
+                
+                if (--timer < 0) {
+                    alert("Waktu ujian habis!");
+                    submitExam();
+                }
+            }, 1000);
+        }
+
+        // Sistem Anti-Cheat (Deteksi Tab Switch / Keluar Layar)
+        function initAntiCheat() {
+            let violations = 0;
+            document.addEventListener("visibilitychange", () => {
+                if (document.hidden) {
+                    violations++;
+                    alert(`PERINGATAN KEAMANAN (${violations}/3): Anda terdeteksi berpindah tab/aplikasi!`);
+                    if (violations >= 3) {
+                        alert("Ujian Anda didiskualifikasi karena terdeteksi curang.");
+                        document.body.innerHTML = "<h1 style='text-align:center; margin-top:20vh; color:red;'>Ujian Ditutup: Pelanggaran Keamanan.</h1>";
+                    }
+                }
+            });
+        }
+
+        function submitExam() {
+            if(confirm("Apakah Anda yakin ingin menyelesaikan dan mengirim jawaban ujian?")) {
+                alert("Jawaban berhasil dikirim ke Cloud Database!");
+                location.reload();
+            }
+        }
+    </script>
+</body>
+</html>
