@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CBT Ujian Sekolah - Siswa</title>
+    <!-- Pustaka Supabase Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
             --primary: #2563eb;
@@ -40,7 +42,8 @@
         @media(max-width: 768px) { .exam-layout { grid-template-columns: 1fr; } }
 
         .card { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        .question-box { font-size: 1.1rem; font-weight: 600; margin-bottom: 20px; }
+        .question-box { font-size: 1.1rem; font-weight: 600; margin-bottom: 15px; }
+        .question-img { max-width: 100%; max-height: 250px; border-radius: 6px; margin-bottom: 15px; display: block; }
         .options label { display: block; padding: 12px; margin-bottom: 10px; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer; }
         .options label:hover { background: #f1f5f9; border-color: var(--primary); }
         .options input { margin-right: 10px; }
@@ -68,8 +71,8 @@
             <input type="text" id="username" placeholder="Masukkan NISN Anda">
         </div>
         <div class="form-group">
-            <label>Token Ujian (Dari Pengawas)</label>
-            <input type="text" id="exam-token" placeholder="Contoh: UJIAN2026" style="text-transform: uppercase;">
+            <label>Kode Login Ujian (Dari Guru)</label>
+            <input type="text" id="exam-token" placeholder="Contoh: IPS1US1" style="text-transform: uppercase;">
         </div>
         <button class="btn btn-primary" onclick="handleLogin()">Mulai Ujian</button>
     </div>
@@ -80,10 +83,11 @@
         <div class="exam-layout">
             <div class="card">
                 <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 15px;">
-                    <span>Soal No. <span id="current-num">1</span> dari <span id="total-num">5</span></span>
+                    <span>Soal No. <span id="current-num">1</span> dari <span id="total-num">0</span></span>
                     <span style="color: #64748b;" id="student-info-header">Siswa: -</span>
                 </div>
-                <div class="question-box" id="question-text">Memuat soal...</div>
+                <div class="question-box" id="question-text">Memuat soal dari server...</div>
+                <div id="image-container"></div>
                 <div class="options" id="options-box"></div>
                 <div class="btn-group">
                     <button class="btn-sm" style="background:#e2e8f0;" onclick="prevQuestion()">Sebelumnya</button>
@@ -99,51 +103,54 @@
                 <div class="card">
                     <p style="font-weight: 600; font-size: 0.9rem;">Navigasi Soal</p>
                     <div class="nav-grid" id="nav-grid"></div>
-                    <button class="btn" style="background:var(--danger); color:white; margin-top:20px;" onclick="submitExam()">Selesai & Kirim Ujian</button>
+                    <button class="btn" style="background:var(--danger); color:white; margin-top:20px;" onclick="promptSubmitExam()">Selesai & Kirim Ujian</button>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        const ACTIVE_TOKEN = "UJIAN2026"; 
-        let loginAttempts = 0;
-        const questions = [
-            { q: "Manakah yang termasuk perangkat lunak sistem operasi?", options: ["Microsoft Word", "Linux Ubuntu", "Google Chrome", "Adobe Photoshop"], answer: 1 },
-            { q: "Hasil dari 12 x 8 - 15 adalah...", options: ["81", "71", "96", "86"], answer: 0 },
-            { q: "Ibukota negara Indonesia berdasarkan undang-undang baru adalah...", options: ["Jakarta", "Bandung", "Nusantara (IKN)", "Surabaya"], answer: 2 },
-            { q: "Protokol standar yang digunakan untuk mengakses halaman web adalah...", options: ["HTTP / HTTPS", "FTP", "SMTP", "SSH"], answer: 0 },
-            { q: "Perangkat keras komputer yang berfungsi sebagai otak pemrosesan data adalah...", options: ["RAM", "Harddisk", "CPU / Processor", "Power Supply"], answer: 2 }
-        ];
+        // INISIALISASI SUPABASE (Ganti dengan URL & Anon Key yang sama dari Supabase Anda)
+        const SUPABASE_URL = 'https://supabase.com/tohyrtgsvkmhsdgpmpao';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRvaHlydGdzdmttaHNkZ3BtcGFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM1ODk1MzcsImV4cCI6MjEwOTE2NTUzN30.4fPubSHQHiVOrjdZeAxhy2S_r-oEtOIxeG65LplxrzA';
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+        let questions = [];
+        let activeKodeKirim = "";
         let currentIdx = 0;
         let answers = {};
         let loggedInUser = "";
+        let activeKodeLogin = "";
 
-        function handleLogin() {
+        async function handleLogin() {
             const username = document.getElementById('username').value.trim();
             const token = document.getElementById('exam-token').value.trim().toUpperCase();
             const errorMsg = document.getElementById('error-msg');
 
             if (!username || !token) {
-                errorMsg.innerText = "NISN dan Token Ujian wajib diisi!";
+                errorMsg.innerText = "NISN dan Kode Login wajib diisi!";
                 return;
             }
 
-            if (token !== ACTIVE_TOKEN) {
-                loginAttempts++;
-                if (loginAttempts >= 3) {
-                    document.getElementById('login-page').innerHTML = `
-                        <h3 style="color:var(--danger); text-align:center;">AKUN DIBLOKIR</h3>
-                        <p style="text-align:center; margin-top:10px;">Anda salah memasukkan token 3 kali. Lapor kepada Pengawas.</p>
-                    `;
-                } else {
-                    errorMsg.innerText = `Token salah! Percobaan gagal ke-${loginAttempts} dari 3.`;
-                }
+            errorMsg.innerText = "Memeriksa kode ujian ke server...";
+
+            // Ambil soal dari tabel soal_ujian berdasarkan kode_login
+            let { data, error } = await _supabase
+                .from('soal_ujian')
+                .select('*')
+                .eq('kode_login', token);
+
+            if (error || !data || data.length === 0) {
+                errorMsg.innerText = "Kode Login Ujian tidak ditemukan di server!";
                 return;
             }
 
+            // Simpan data soal dan kode kirim
+            questions = data;
+            activeKodeKirim = data[0].kode_kirim; // Ambil kode kirim dari paket soal
+            activeKodeLogin = token;
             loggedInUser = username;
+
             document.getElementById('login-page').classList.add('hidden');
             document.getElementById('exam-page').classList.remove('hidden');
             document.getElementById('student-info-header').innerText = `Siswa: ${username}`;
@@ -163,7 +170,7 @@
             const wm = document.getElementById('watermark');
             for(let i=0; i<30; i++) {
                 let span = document.createElement('span');
-                span.innerText = `Siswa: ${loggedInUser} - CBT SEKOLAH SECURE`;
+                span.innerText = `Siswa: ${loggedInUser} - CBT SECURE`;
                 wm.appendChild(span);
             }
 
@@ -175,19 +182,36 @@
             document.getElementById('total-num').innerText = questions.length;
 
             loadQuestion(0);
-            startTimer(2700);
+            startTimer(2700); // 45 Menit
             initAntiCheat();
         }
 
         function loadQuestion(index) {
             currentIdx = index;
             document.getElementById('current-num').innerText = index + 1;
-            document.getElementById('question-text').innerText = questions[index].q;
+            document.getElementById('question-text').innerText = questions[index].pertanyaan;
+
+            // Render Gambar jika ada
+            let imgContainer = document.getElementById('image-container');
+            if (questions[index].gambar_url) {
+                imgContainer.innerHTML = `<img src="${questions[index].gambar_url}" class="question-img" alt="Ilustrasi Soal">`;
+            } else {
+                imgContainer.innerHTML = "";
+            }
 
             let optHTML = '';
-            questions[index].options.forEach((opt, i) => {
-                let checked = answers[index] === i ? 'checked' : '';
-                optHTML += `<label><input type="radio" name="opt" value="${i}" ${checked} onclick="saveAns(${index}, ${i})"> ${opt}</label>`;
+            let optionsArr = [
+                questions[index].pilihan_a,
+                questions[index].pilihan_b,
+                questions[index].pilihan_c,
+                questions[index].pilihan_d
+            ];
+
+            optionsArr.forEach((opt, i) => {
+                if (opt) {
+                    let checked = answers[index] === i ? 'checked' : '';
+                    optHTML += `<label><input type="radio" name="opt" value="${i}" ${checked} onclick="saveAns(${index}, ${i})"> ${opt}</label>`;
+                }
             });
             document.getElementById('options-box').innerHTML = optHTML;
             updateNavColor();
@@ -220,7 +244,7 @@
                     `${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
                 if (--timer < 0) {
                     alert("Waktu ujian habis!");
-                    submitExam();
+                    submitExamProcess();
                 }
             }, 1000);
         }
@@ -239,9 +263,43 @@
             });
         }
 
-        function submitExam() {
-            if(confirm("Apakah Anda yakin ingin menyelesaikan dan mengirim jawaban ujian?")) {
-                alert("Jawaban berhasil dikirim ke Cloud Database!");
+        function promptSubmitExam() {
+            let kodeInput = prompt("Masukkan Kode Kirim Jawaban (Submit Key) dari Pengawas:");
+            if (!kodeInput) return;
+
+            if (kodeInput.trim().toUpperCase() !== activeKodeKirim) {
+                alert("Kode Kirim Jawaban salah! Minta kode yang benar kepada pengawas.");
+                return;
+            }
+
+            submitExamProcess();
+        }
+
+        async function submitExamProcess() {
+            // Hitung Skor Otomatis
+            let skorTotal = 0;
+            let jumlahSoal = questions.length;
+
+            questions.forEach((q, i) => {
+                if (answers[i] === q.jawaban_benar) {
+                    skorTotal += (100 / jumlahSoal);
+                }
+            });
+
+            let nilaiAkhir = Math.round(skorTotal);
+
+            // Kirim hasil ke tabel hasil_siswa di Supabase
+            let { error } = await _supabase.from('hasil_siswa').insert([{
+                nisn: loggedInUser,
+                kode_login: activeKodeLogin,
+                skor: nilaiAkhir,
+                status: "Selesai"
+            }]);
+
+            if (error) {
+                alert("Gagal mengirim nilai ke server: " + error.message);
+            } else {
+                alert(`Ujian Selesai! Nilai Anda berhasil dikirim ke database. Skor Anda: ${nilaiAkhir}`);
                 location.reload();
             }
         }
