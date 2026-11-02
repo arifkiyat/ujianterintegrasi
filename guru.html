@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Pengelola - Guru & Admin CBT</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --success: #10b981;
+            --danger: #dc2626;
+            --warning: #f59e0b;
+            --bg: #f8fafc;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: var(--bg); color: #1e293b; line-height: 1.5; padding: 20px; }
+        .hidden { display: none !important; }
+
+        /* Login Container */
+        .login-container { max-width: 400px; margin: 10vh auto; background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+        .login-container h2 { color: var(--success); margin-bottom: 20px; text-align: center; }
+
+        /* Layout Utama Dasbor */
+        .dashboard-layout { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 260px 1fr; gap: 20px; }
+        @media(max-width: 768px) { .dashboard-layout { grid-template-columns: 1fr; } }
+
+        /* Sidebar Menu */
+        .sidebar-menu { background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); height: fit-content; }
+        .menu-btn { width: 100%; padding: 12px; text-align: left; background: none; border: none; font-weight: 600; cursor: pointer; border-radius: 6px; margin-bottom: 5px; color: #64748b; }
+        .menu-btn:hover { background: #f1f5f9; color: var(--primary); }
+        .menu-btn.active { background: var(--primary); color: white; }
+
+        /* Content Panel */
+        .content-panel { background: #fff; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); min-height: 550px; }
+        .panel-section { display: none; }
+        .panel-section.active { display: block; }
+
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9rem; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 1rem; }
+        .btn { padding: 10px 20px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-warning { background: var(--warning); color: white; }
+        
+        .card-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 8px; margin-bottom: 15px; }
+        .question-item-card { background: #fff; border: 2px solid #cbd5e1; padding: 20px; border-radius: 8px; margin-bottom: 20px; position: relative; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        table th, table td { border: 1px solid #e2e8f0; padding: 10px; text-align: left; font-size: 0.9rem; }
+        table th { background: #f1f5f9; }
+    </style>
+</head>
+<body>
+
+    <!-- 1. HALAMAN LOGIN GURU / ADMIN -->
+    <div id="guru-login" class="login-container">
+        <h2>Panel Pengelola CBT</h2>
+        <div id="error-msg" style="color: var(--danger); font-size: 0.85rem; margin-bottom: 10px; text-align: center;"></div>
+        <div class="form-group">
+            <label>ID Guru / Admin</label>
+            <input type="text" id="guru-user" placeholder="Masukkan ID Pengajar">
+        </div>
+        <div class="form-group">
+            <label>Password Pengelola</label>
+            <input type="password" id="guru-pass" placeholder="Password (GURU2026)">
+        </div>
+        <button class="btn btn-success" style="width: 100%;" onclick="loginGuru()">Masuk Dasbor</button>
+    </div>
+
+    <!-- 2. DASBOR UTAMA GURU -->
+    <div id="guru-dashboard" class="hidden dashboard-layout">
+        
+        <!-- SIDEBAR NAVIGASI MENU -->
+        <div class="sidebar-menu">
+            <h3 style="margin-bottom: 20px; color: var(--primary); font-size: 1.1rem;">Menu Guru / Admin</h3>
+            <button class="menu-btn active" onclick="switchMenu('menu-buat-soal', this)">1. Buat Soal & Kode</button>
+            <button class="menu-btn" onclick="switchMenu('menu-bank-soal', this)">2. Bank Soal</button>
+            <button class="menu-btn" onclick="switchMenu('menu-live-score', this)">3. Live Score</button>
+            <button class="menu-btn" onclick="switchMenu('menu-ujian-berlangsung', this)">4. Ujian Berlangsung</button>
+            <button class="menu-btn" onclick="switchMenu('menu-rekap', this)">5. Unduh Rekap Nilai</button>
+            <hr style="margin: 20px 0; border: 0; border-top: 1px solid #e2e8f0;">
+            <button class="menu-btn" style="color: var(--danger);" onclick="location.reload()">Keluar / Logout</button>
+        </div>
+
+        <!-- KONTEN PANEL UTAMA -->
+        <div class="content-panel">
+
+            <!-- SECTION 1: BUAT SOAL & ATUR KODE -->
+            <div id="menu-buat-soal" class="panel-section active">
+                <h3 style="margin-bottom: 15px; color: var(--primary);">1. Buat Soal & Pengaturan Kode Ujian</h3>
+                <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 20px;">Tentukan kode spesifik, sisipkan gambar, dan tambahkan soal secara dinamis.</p>
+                
+                <div class="card-box">
+                    <h4 style="margin-bottom: 15px; color: #1e293b;">Pengaturan Keamanan Paket Soal</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div class="form-group">
+                            <label>Mata Pelajaran:</label>
+                            <input type="text" id="input-mapel" placeholder="Contoh: IPS Terpadu">
+                        </div>
+                        <div class="form-group">
+                            <label>Jenjang Kelas:</label>
+                            <select id="input-kelas">
+                                <option value="Kelas 7">Kelas 7</option>
+                                <option value="Kelas 8">Kelas 8</option>
+                                <option value="Kelas 9">Kelas 9</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div class="form-group">
+                            <label>Kode Login Masuk (Contoh: IPS1US1):</label>
+                            <input type="text" id="input-kode-login" placeholder="IPS1US1" style="text-transform: uppercase;">
+                        </div>
+                        <div class="form-group">
+                            <label>Kode Kirim Jawaban (Contoh: EX12345):</label>
+                            <input type="text" id="input-kode-kirim" placeholder="EX12345" style="text-transform: uppercase;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CONTAINER DINAMIS UNTUK DAFTAR SOAL -->
+                <div id="container-form-soal">
+                    <!-- Form Soal Pertama (Default) -->
+                    <div class="question-item-card" data-index="1">
+                        <h4 style="margin-bottom: 12px; color: var(--primary);">Soal No. 1</h4>
+                        <div class="form-group">
+                            <label>Pertanyaan Soal:</label>
+                            <textarea rows="2" class="q-text" placeholder="Ketik pertanyaan di sini..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Link Gambar Pendukung (Opsional - URL Gambar):</label>
+                            <input type="text" class="q-img" placeholder="https://contoh.com/gambar-soal.png">
+                        </div>
+                        <div class="form-group"><label>Pilihan A:</label><input type="text" class="opt-a" placeholder="Jawaban A"></div>
+                        <div class="form-group"><label>Pilihan B:</label><input type="text" class="opt-b" placeholder="Jawaban B"></div>
+                        <div class="form-group"><label>Pilihan C:</label><input type="text" class="opt-c" placeholder="Jawaban C"></div>
+                        <div class="form-group"><label>Pilihan D:</label><input type="text" class="opt-d" placeholder="Jawaban D"></div>
+                        <div class="form-group">
+                            <label>Kunci Jawaban Benar:</label>
+                            <select class="q-ans">
+                                <option value="0">Pilihan A</option>
+                                <option value="1">Pilihan B</option>
+                                <option value="2">Pilihan C</option>
+                                <option value="3">Pilihan D</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-bottom: 25px;">
+                    <button class="btn btn-warning" style="background: var(--warning); color: white;" onclick="tambahFormSoal()">➕ Tambah Kolom Soal Lain</button>
+                    <button class="btn btn-success" style="flex: 1;" onclick="simpanKeBankSoal()">💾 Simpan Seluruh Soal & Kode ke Bank Soal</button>
+                </div>
+            </div>
+
+            <!-- SECTION 2: BANK SOAL -->
+            <div id="menu-bank-soal" class="panel-section">
+                <h3 style="margin-bottom: 15px; color: var(--primary);">2. Bank Soal & Kumpulan Ujian</h3>
+                <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 20px;">Daftar paket soal dan kode keamanan yang telah dibuat oleh pengajar.</p>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Mata Pelajaran</th>
+                            <th>Kelas</th>
+                            <th>Kode Login</th>
+                            <th>Kode Kirim</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabel-bank-soal">
+                        <tr>
+                            <td>Ilmu Pengetahuan Sosial (IPS)</td>
+                            <td>Kelas 8</td>
+                            <td><b>IPS1US1</b></td>
+                            <td><b>EX12345</b></td>
+                            <td><button class="btn btn-primary" style="padding: 5px 10px; font-size: 0.8rem;" onclick="alert('Membuka mode edit soal...')">✏️ Edit Soal</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- SECTION 3: LIVE SCORE -->
+            <div id="menu-live-score" class="panel-section">
+                <h3 style="margin-bottom: 15px; color: var(--primary);">3. Pemantauan Live Score Siswa</h3>
+                <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 20px;">Pantau progres pengerjaan berdasarkan mata pelajaran dan jenjang kelas.</p>
+                
+                <div style="display: flex; gap: 15px; margin-bottom: 15px;">
+                    <div class="form-group" style="flex: 1; margin:0;">
+                        <label>Filter Mata Pelajaran:</label>
+                        <select>
+                            <option value="semua">Semua Mata Pelajaran</option>
+                            <option value="ips">IPS (Kode: IPS1US1)</option>
+                            <option value="matematika">Matematika (Kode: MAT01)</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex: 1; margin:0;">
+                        <label>Filter Jenjang Kelas:</label>
+                        <select>
+                            <option value="semua">Semua Kelas</option>
+                            <option value="7">Kelas 7</option>
+                            <option value="8">Kelas 8</option>
+                            <option value="9">Kelas 9</option>
+                        </select>
+                    </div>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>NISN / Nama Siswa</th>
+                            <th>Kelas</th>
+                            <th>Mata Pelajaran</th>
+                            <th>Status Pengerjaan</th>
+                            <th>Skor Sementara</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>12345 - Ahmad Fauzan</td>
+                            <td>Kelas 8</td>
+                            <td>IPS (IPS1US1)</td>
+                            <td><span style="color: var(--success); font-weight:600;">Mengerjakan (Soal No. 4)</span></td>
+                            <td>80 / 100</td>
+                        </tr>
+                        <tr>
+                            <td>12346 - Siti Aminah</td>
+                            <td>Kelas 8</td>
+                            <td>IPS (IPS1US1)</td>
+                            <td><span style="color: var(--primary); font-weight:600;">Selesai (Sudah Dikirim)</span></td>
+                            <td>90 / 100</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- SECTION 4: UJIAN BERLANGSUNG -->
+            <div id="menu-ujian-berlangsung" class="panel-section">
+                <h3 style="margin-bottom: 15px; color: var(--primary);">4. Sesi Ujian yang Sedang Berlangsung</h3>
+                <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 20px;">Daftar mata pelajaran aktif dan jumlah partisipasi peserta didik.</p>
+                
+                <div class="card-box" style="border-left: 4px solid var(--success);">
+                    <h4 style="color: var(--success); margin-bottom: 5px;">Mata Pelajaran: Ilmu Pengetahuan Sosial (IPS)</h4>
+                    <p style="font-size: 0.9rem; color: #64748b;">Kode Login: <b>IPS1US1</b> | Kode Kirim: <b>EX12345</b></p>
+                    <hr style="margin: 10px 0; border:0; border-top:1px solid #cbd5e1;">
+                    <p style="font-size: 1rem; font-weight: 600;">Jumlah Siswa Mengikuti: <span style="color: var(--primary);">32 Siswa</span> (Sedang Aktif Mengerjakan)</p>
+                </div>
+            </div>
+
+            <!-- SECTION 5: UNDUH REKAP NILAI -->
+            <div id="menu-rekap" class="panel-section">
+                <h3 style="margin-bottom: 15px; color: var(--primary);">5. Unduh Rekap Hasil Ujian Siswa</h3>
+                <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 20px;">Pilih mata pelajaran atau masukkan kode login masuk untuk mengunduh laporan.</p>
+                
+                <div class="card-box">
+                    <div class="form-group">
+                        <label>Pilih Mata Pelajaran / Berdasarkan Kode Login:</label>
+                        <select id="select-matkul-rekap">
+                            <option value="IPS1US1">Ilmu Pengetahuan Sosial - Kelas 8 (Kode: IPS1US1)</option>
+                            <option value="MAT01">Matematika Dasar - Kelas 7 (Kode: MAT01)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Format Berkas Unduhan:</label>
+                        <select id="select-format-rekap">
+                            <option value="excel">Microsoft Excel (.xlsx / .csv)</option>
+                            <option value="pdf">Dokumen PDF (.pdf)</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-success" onclick="downloadRekapNilai()">📥 Unduh Berkas Rekap Nilai</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        let soalCount = 1;
+
+        function loginGuru() {
+            const user = document.getElementById('guru-user').value.trim();
+            const pass = document.getElementById('guru-pass').value.trim();
+            const err = document.getElementById('error-msg');
+
+            if (!user || !pass) {
+                err.innerText = "ID dan Password wajib diisi!";
+                return;
+            }
+            if (pass !== "GURU2026") {
+                err.innerText = "Password pengelola salah!";
+                return;
+            }
+
+            document.getElementById('guru-login').classList.add('hidden');
+            document.getElementById('guru-dashboard').classList.remove('hidden');
+        }
+
+        function switchMenu(sectionId, btnElement) {
+            document.querySelectorAll('.panel-section').forEach(sec => sec.classList.remove('active'));
+            document.querySelectorAll('.menu-btn').forEach(btn => btn.classList.remove('active'));
+
+            document.getElementById(sectionId).classList.add('active');
+            btnElement.classList.add('active');
+        }
+
+        // Fungsi Menambah Form Soal Secara Dinamis
+        function tambahFormSoal() {
+            soalCount++;
+            let container = document.getElementById('container-form-soal');
+            
+            let cardDiv = document.createElement('div');
+            cardDiv.className = 'question-item-card';
+            cardDiv.setAttribute('data-index', soalCount);
+            
+            cardDiv.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <h4 style="color: var(--primary);">Soal No. ${soalCount}</h4>
+                    <button class="btn btn-danger" style="padding: 4px 10px; font-size: 0.75rem;" onclick="this.parentElement.parentElement.remove()">Hapus Soal Ini</button>
+                </div>
+                <div class="form-group">
+                    <label>Pertanyaan Soal:</label>
+                    <textarea rows="2" class="q-text" placeholder="Ketik pertanyaan di sini..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Link Gambar Pendukung (Opsional - URL Gambar):</label>
+                    <input type="text" class="q-img" placeholder="https://contoh.com/gambar-soal.png">
+                </div>
+                <div class="form-group"><label>Pilihan A:</label><input type="text" class="opt-a" placeholder="Jawaban A"></div>
+                <div class="form-group"><label>Pilihan B:</label><input type="text" class="opt-b" placeholder="Jawaban B"></div>
+                <div class="form-group"><label>Pilihan C:</label><input type="text" class="opt-c" placeholder="Jawaban C"></div>
+                <div class="form-group"><label>Pilihan D:</label><input type="text" class="opt-d" placeholder="Jawaban D"></div>
+                <div class="form-group">
+                    <label>Kunci Jawaban Benar:</label>
+                    <select class="q-ans">
+                        <option value="0">Pilihan A</option>
+                        <option value="1">Pilihan B</option>
+                        <option value="2">Pilihan C</option>
+                        <option value="3">Pilihan D</option>
+                    </select>
+                </div>
+            `;
+            container.appendChild(cardDiv);
+        }
+
+        function simpanKeBankSoal() {
+            let mapel = document.getElementById('input-mapel').value.trim();
+            let kelas = document.getElementById('input-kelas').value;
+            let kodeLogin = document.getElementById('input-kode-login').value.trim().toUpperCase();
+            let kodeKirim = document.getElementById('input-kode-kirim').value.trim().toUpperCase();
+
+            if (!mapel || !kodeLogin || !kodeKirim) {
+                alert("Mohon lengkapi Mata Pelajaran, Kode Login Masuk, dan Kode Kirim Jawaban terlebih dahulu!");
+                return;
+            }
+
+            // Validasi apakah ada form soal yang diisi
+            let cardSoalList = document.querySelectorAll('.question-item-card');
+            if (cardSoalList.length === 0) {
+                alert("Minimal harus ada 1 soal yang dibuat!");
+                return;
+            }
+
+            // Tambahkan data secara simulasi ke tabel Bank Soal
+            let tbody = document.getElementById('tabel-bank-soal');
+            let newRow = document.createElement('tr');
+            newRow.innerHTML = `
+                <td>${mapel}</td>
+                <td>${kelas}</td>
+                <td><b>${kodeLogin}</b></td>
+                <td><b>${kodeKirim}</b></td>
+                <td><button class="btn btn-primary" style="padding: 5px 10px; font-size: 0.8rem;" onclick="alert('Membuka mode edit soal...')">✏️ Edit Soal</button></td>
+            `;
+            tbody.appendChild(newRow);
+
+            alert(`Sukses! Paket soal (${mapel}) dengan Kode Login [${kodeLogin}] dan total ${cardSoalList.length} soal berhasil disimpan ke Bank Soal.`);
+            
+            // Reset form utama
+            document.getElementById('input-mapel').value = "";
+            document.getElementById('input-kode-login').value = "";
+            document.getElementById('input-kode-kirim').value = "";
+            
+            // Sisakan 1 form soal kosong di layar
+            document.getElementById('container-form-soal').innerHTML = `
+                <div class="question-item-card" data-index="1">
+                    <h4 style="margin-bottom: 12px; color: var(--primary);">Soal No. 1</h4>
+                    <div class="form-group">
+                        <label>Pertanyaan Soal:</label>
+                        <textarea rows="2" class="q-text" placeholder="Ketik pertanyaan di sini..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Link Gambar Pendukung (Opsional - URL Gambar):</label>
+                        <input type="text" class="q-img" placeholder="https://contoh.com/gambar-soal.png">
+                    </div>
+                    <div class="form-group"><label>Pilihan A:</label><input type="text" class="opt-a" placeholder="Jawaban A"></div>
+                    <div class="form-group"><label>Pilihan B:</label><input type="text" class="opt-b" placeholder="Jawaban B"></div>
+                    <div class="form-group"><label>Pilihan C:</label><input type="text" class="opt-c" placeholder="Jawaban C"></div>
+                    <div class="form-group"><label>Pilihan D:</label><input type="text" class="opt-d" placeholder="Jawaban D"></div>
+                    <div class="form-group">
+                        <label>Kunci Jawaban Benar:</label>
+                        <select class="q-ans">
+                            <option value="0">Pilihan A</option>
+                            <option value="1">Pilihan B</option>
+                            <option value="2">Pilihan C</option>
+                            <option value="3">Pilihan D</option>
+                        </select>
+                    </div>
+                </div>
+            `;
+            soalCount = 1;
+        }
+
+        function downloadRekapNilai() {
+            let kode = document.getElementById('select-matkul-rekap').value;
+            let format = document.getElementById('select-format-rekap').value;
+            alert(`Berhasil! Rekap nilai untuk ujian dengan kode (${kode}) dalam format (${format.toUpperCase()}) sedang diunduh.`);
+        }
+    </script>
+</body>
+</html>
